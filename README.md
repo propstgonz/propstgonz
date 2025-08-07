@@ -1,4 +1,4 @@
-# Hi, I'm Propstg 👋
+# Hi, I'm Propst, AKA Propstg or Propstgonz
 
 I'm a student based in Galicia, Spain.  
 I use GitHub to store and share some of my personal projects.  
