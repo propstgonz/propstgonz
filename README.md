@@ -14,23 +14,23 @@ Feel free to explore.
         <!-- Stats para el modo oscuro (Izquierda) -->
         <picture>
             <source 
-                srcset="https://github-readme-stats.vercel.app/api?username=sierrapablo&show_icons=true&hide_rank=true&rank_icon=github&hide=contribs&count_private=true&hide_border=true&count_private=true&theme=transparent&title_color=f2c35c&icon_color=a67b40&text_color=88ab98" 
+                srcset="https://github-readme-stats.vercel.app/api?username=propstgonz&show_icons=true&hide_rank=true&rank_icon=github&hide=contribs&count_private=true&hide_border=true&count_private=true&theme=transparent&title_color=f2c35c&icon_color=a67b40&text_color=88ab98" 
                 media="(prefers-color-scheme: dark)"
             />
             <!-- Fallback para el modo claro -->
             <img 
-                src="https://github-readme-stats.vercel.app/api?username=sierrapablo&show_icons=true&hide_rank=true&rank_icon=github&hide=contribs&hide_border=true&count_private=true&theme=default" 
+                src="https://github-readme-stats.vercel.app/api?username=propstgonz&show_icons=true&hide_rank=true&rank_icon=github&hide=contribs&hide_border=true&count_private=true&theme=default" 
                 alt="Github stats" width="55%" align="top-center"/>
         </picture>
         <!-- Top Languages para el modo oscuro (Derecha) -->
         <picture>
             <source 
-                srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=sierrapablo&layout=compact&langs_count=5&hide_border=true&theme=transparent&title_color=f2c35c&icon_color=a67b40&text_color=88ab98"
+                srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=propstgonz&layout=compact&langs_count=5&hide_border=true&theme=transparent&title_color=f2c35c&icon_color=a67b40&text_color=88ab98"
                 media="(prefers-color-scheme: dark)"
             />
             <!-- Fallback para el modo claro -->
             <img 
-                src="https://github-readme-stats.vercel.app/api/top-langs/?username=sierrapablo&layout=compact&langs_count=5&hide_border=true&theme=default" 
+                src="https://github-readme-stats.vercel.app/api/top-langs/?username=propstgonz&layout=compact&langs_count=5&hide_border=true&theme=default" 
                 alt="Most used languages" width="40%" align="top-center"/>
         </picture>
     </div>
@@ -45,7 +45,7 @@ Feel free to explore.
           />
       <!-- Fallback para el modo claro -->
       <img 
-          src="https://github-readme-streak-stats.herokuapp.com?user=sierrapablo&theme=default&hide_border=true&date_format=j%20M%5B%20Y%5D&" 
+          src="https://github-readme-streak-stats.herokuapp.com?user=propstgonz&theme=default&hide_border=true&date_format=j%20M%5B%20Y%5D&" 
           width="95%" alt="Github stats" align="center" />
     </picture>
 </div>
