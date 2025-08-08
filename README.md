@@ -39,7 +39,7 @@ Feel free to explore.
     <!-- Streak and contributions para el modo oscuro-->
     <picture>
         <source
-          srcset="https://github-readme-streak-stats.herokuapp.com?user=sierrapablo&theme=transparent&hide_border=true&date_format=j%20M%5B%20Y%5D&stroke=678079&ring=F2C35C&fire=A67B40&currStreakLabel=A67B40&sideLabels=A67B40&dates=88AB98&currStreakNum=88AB98&sideNums=88AB98"
+          srcset="https://github-readme-streak-stats.herokuapp.com?user=propstgonz&theme=transparent&hide_border=true&date_format=j%20M%5B%20Y%5D&stroke=678079&ring=F2C35C&fire=A67B40&currStreakLabel=A67B40&sideLabels=A67B40&dates=88AB98&currStreakNum=88AB98&sideNums=88AB98"
           media="(prefers-color-scheme: dark)"
           alt="Streak and contributions"
           />
