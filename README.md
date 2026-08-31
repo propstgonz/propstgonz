@@ -1,11 +1,24 @@
 # Hi, I'm Propst, AKA Propstg or Propstgonz
 
-I'm a student from Galicia, Spain.  
-I use GitHub to store and share some of my personal projects.  
-I study systems and networks, and I use GitHub to save and share some of my projects.  
-Mostly interested in Linux, servers, and simple infrastructure setups.
+I'm an IT, Systems, and Networks student based in Galicia, Spain. 
+
+While I am a junior and code mostly as a hobby, I don't build things just for the sake of it (Lying).
+I focus on solving actual problems. I am learning robust networking, security, and how to build infrastructure that simply works. 
+I despise over-engineered setups, bloatware, and the corporate greed behind shitty subscriptions. If Big Tech locks functionality behind a paywall, I will try actively build tools to bypass their garbage and self-host my own solutions.
+
+If it's not efficient and maintainable, it's broken.
+
+**What I actually do:**
+
+* **Systems & Infrastructure:** Linux administration, studying for networking certifications (CCNA), and containerized deployments (Docker). I automate what is tedious. And yes, I use Arch BTW.
+* **Development:** TypeScript/JavaScript, Node.js, and Astro. I build Server-Side Rendered (SSR) web applications, and I strictly develop them inside Docker containers. Relying on the client's browser to do the server's job is a modern tragedy.
+* **Databases:** Currently diving deep into database management and architecture. I am learning the core of how data should be structured and queried, because a fast application is useless if the underlying data layer is a mess.
+* **AI Orchestration & Architecture:** I architect solutions. I leverage Claude Code to refine projects to a professional standard. By designing strict CLAUDE.md rulesets and orchestrating AI agents, I enforce clean architecture, high-quality code, and strict adherence to development best practices. The AI writes the boilerplate, but I dictate the standards.
+* **Philosophy:** Keep it simple. Keep it fast. Do it right.
 
 Feel free to explore.
+
+I document my broken setups, notes, and occasional rants on my [blog](https://propstgonz.baronette.es/blog) (Spanish only, I'm way too lazy to translate it).
 
 <!-- Pablito sé que estás viendo esto, muchas gracias por escribirme el about me por mi, ya que soy un vago ;)-->
 <h2>My GitHub statistics</h2>
