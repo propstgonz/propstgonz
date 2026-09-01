@@ -113,6 +113,9 @@ pipeline {
           docker logs --tail 50 "$CID" >&2
           exit 1
         '''
+        // Presence is confirmed healthy as of here -- a later, unrelated
+        // failure (the collector stages below) must not roll it back.
+        script { deployed = false }
       }
     }
 
@@ -151,6 +154,9 @@ pipeline {
   post {
     failure {
       script {
+        // True only between the Deploy and Verify stages for forge-presence --
+        // Verify resets it once presence is confirmed healthy, so a failure in
+        // an unrelated later stage (the collector) never rolls presence back.
         if (deployed) {
           sh '''
             set -eu
