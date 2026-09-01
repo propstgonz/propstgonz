@@ -100,9 +100,14 @@ Rules:
   alternative, if you ever want it, is a fine-grained PAT with `contents:read` over HTTPS — the
   collector is written so only `clone.ts` would change.
 - Rotation: revoke in GitHub/Discord first. For the SSH key, replace the file in `forge/.secrets/`.
-  For `GITHUB_PAT`/`DISCORD_BOT_TOKEN`, replace the value in `.env`. Either way, finish with
+  For `GITHUB_PAT`/`DISCORD_BOT_TOKEN`, replace the value in `.env` — for a manual/local deployment
+  that means the repo root; for the Jenkins-deployed `forge-presence`, it means the `.env` sitting in
+  that job's workspace (see Continuous deployment below). Either way, finish with
   `docker compose up -d --force-recreate` — Compose secrets and `env_file` are both read on
   container start, not live.
+- **Never paste a real secret value into a chat, a commit, an issue, or a log**, including to Claude.
+  If one leaks that way, treat it as compromised and rotate it immediately regardless of where the
+  file itself was misplaced or correctly placed.
 
 ## Container hardening baseline
 
@@ -125,14 +130,23 @@ The `Jenkinsfile` builds and deploys **only `forge-presence`**. The collector is
 excluded on purpose: it holds the SSH key and the PAT, and a CI system able to
 redeploy it is a CI system able to exfiltrate them. Deploy the collector by hand.
 
-- **The pipeline holds none of the three secrets.** Compose reads them from
-  `/srv/readme-forge/.env` and `/srv/readme-forge/forge/.secrets/` on the host
-  at container start; the pipeline only runs `docker compose up -d`. The profile
-  repo is public, so there are no git credentials either. Do not "simplify" this
-  by injecting tokens as Jenkins credentials — it would undo the entire secret model.
-- The deploy step rsyncs the repo into `/srv/readme-forge` with `.env`,
-  `forge/.secrets/` and `forge/state/` excluded. Those are host state and the
-  pipeline must never write them.
+- **`docker compose up` runs directly in the Jenkins job's own workspace** — there
+  is no separate deploy directory and nothing gets rsynced anywhere. The job does
+  a plain `git checkout -f` and no `git clean`, so the untracked, gitignored `.env`
+  sitting in that workspace survives every build. It is created once by hand
+  (`GITHUB_PAT` and `DISCORD_BOT_TOKEN` filled in, per `.env.example`) and CI never
+  writes to it. Do not add a "wipe workspace" or `git clean` step to this job —
+  that would delete it, and the next build would fail the `.env` check on purpose
+  rather than deploy with a stale or missing one.
+- Consequence of the above: unlike the SSH key, `GITHUB_PAT` and `DISCORD_BOT_TOKEN`
+  **do** end up living on disk inside Jenkins' own storage for this job, by
+  deliberate choice — this Jenkins is a single host the user directly controls, not
+  a fleet of ephemeral or shared-tenant agents. The SSH key still never goes near
+  it: this pipeline never touches `forge-collector`, so it has no reason to.
+- Do not "simplify" this by injecting tokens as Jenkins credentials instead of a
+  workspace `.env` — same secret model, worse: it moves the value into Jenkins'
+  credential store and job configuration, which is exactly the extra surface this
+  setup avoids.
 - Jenkins mounting the docker socket, binding to `127.0.0.1`, admin auth, and
   which jobs are allowed to run on it are all properties of the shared server,
   not of this repo — see whatever configures that Jenkins instance for those.

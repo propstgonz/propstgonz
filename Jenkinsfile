@@ -17,9 +17,8 @@ pipeline {
   }
 
   environment {
-    IMAGE      = 'forge-presence'
-    SERVICE    = 'forge-presence'
-    DEPLOY_DIR = '/srv/readme-forge'
+    IMAGE   = 'forge-presence'
+    SERVICE = 'forge-presence'
   }
 
   stages {
@@ -62,30 +61,25 @@ pipeline {
     }
 
     stage('Deploy') {
+      // Runs docker compose directly in the Jenkins workspace -- there is no
+      // separate deploy directory to rsync into. .env and forge/.secrets/
+      // are untracked and gitignored, so a plain `git checkout -f` (this
+      // job runs no `git clean`) never touches them; they persist here
+      // across builds and CI never writes to them.
       steps {
         script { deployed = true }
         sh '''
           set -eu
-          if [ ! -f "${DEPLOY_DIR}/.env" ]; then
-            echo "missing ${DEPLOY_DIR}/.env - see README.md" >&2
+          if [ ! -f .env ]; then
+            echo "missing .env in the Jenkins workspace - see forge/README.md" >&2
             exit 1
           fi
-
-          # Sync code only. .env, forge/.secrets/ and forge/state/ live on the
-          # host and are never touched by CI, which is why Jenkins needs no
-          # secret of its own.
-          rsync -a --delete \
-            --exclude '.git/' --exclude '.env' \
-            --exclude 'forge/.secrets/' --exclude 'forge/state/' \
-            --exclude 'forge/node_modules/' --exclude 'forge/dist/' \
-            ./ "${DEPLOY_DIR}/"
 
           if docker image inspect "${IMAGE}:latest" >/dev/null 2>&1; then
             docker tag "${IMAGE}:latest" "${IMAGE}:rollback"
           fi
           docker tag "${IMAGE}:${BUILD_NUMBER}" "${IMAGE}:latest"
 
-          cd "${DEPLOY_DIR}"
           docker compose up -d --no-deps "${SERVICE}"
         '''
       }
@@ -98,7 +92,6 @@ pipeline {
       steps {
         sh '''
           set -eu
-          cd "${DEPLOY_DIR}"
           CID=$(docker compose ps -q "${SERVICE}")
           [ -n "$CID" ] || { echo "verify: service is not running" >&2; exit 1; }
 
@@ -130,7 +123,6 @@ pipeline {
               exit 0
             fi
             docker tag "${IMAGE}:rollback" "${IMAGE}:latest"
-            cd "${DEPLOY_DIR}"
             docker compose up -d --no-deps "${SERVICE}"
             echo "rollback: restored previous image"
           '''
