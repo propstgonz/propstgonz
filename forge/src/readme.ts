@@ -32,8 +32,8 @@ export function buildBlock(version: string, assetsBase: string, widgetsBase: str
   <img src="${assetsBase}/${name}-light.svg?v=${version}" alt="${alt}" width="${width}" />
 </picture>`;
 
-  return `<h2>My GitHub statistics</h2>
-<p><img src="${widgetsBase}/discord.svg" alt="Discord status" width="360" /></p>
+  return `<p><img src="${widgetsBase}/discord.svg" alt="Discord status" width="360" /></p>
+<h2>My GitHub statistics</h2>
 ${picture("streak", "Contribution streak", "95%")}
 ${picture("langs", "Language usage across all my repositories", "95%")}
 <sub>Rendered by <a href="./forge">forge/</a> — self-hosted, updated daily at 04:00 CET. No Vercel, no Heroku, no third parties.</sub>`;

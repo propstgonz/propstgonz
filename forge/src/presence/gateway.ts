@@ -7,6 +7,7 @@ import {
   type PresenceStatus,
   type User,
 } from "discord.js";
+import { fetchBadges } from "./badges.js";
 import { log } from "../lib/log.js";
 
 export type Presence = {
@@ -14,6 +15,7 @@ export type Presence = {
   activity: string | null;
   avatarDataUri: string | null;
   displayName: string;
+  badges: string[];
   updatedAt: string;
 };
 
@@ -43,6 +45,7 @@ function initialPresence(): Presence {
     activity: null,
     avatarDataUri: null,
     displayName: "propstgonz",
+    badges: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -68,6 +71,8 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
     partials: [Partials.GuildMember, Partials.User],
   });
 
+  let badges: string[] = [];
+
   const publish = (p: Presence) => {
     current = p;
     onChange(p);
@@ -82,7 +87,16 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
       activity: activityObj ? activityObj.name : customState,
       avatarDataUri: await fetchAvatarDataUri(discordPresence.user),
       displayName: discordPresence.user?.globalName ?? discordPresence.user?.username ?? "propstgonz",
+      badges,
       updatedAt: new Date().toISOString(),
+    });
+  };
+
+  // Kept off the presenceUpdate path: badges change far more rarely than status.
+  const refreshBadges = async () => {
+    badges = await fetchBadges(client, userId).catch((err: Error) => {
+      log("gateway", `badge refresh failed, keeping previous: ${err.message}`);
+      return badges;
     });
   };
 
@@ -106,6 +120,7 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
       const guilds = client.guilds.cache;
       log("gateway", `connected, tracking ${userId}`);
       log("gateway", `${guilds.size} guild(s): ${guilds.map((g) => g.name).join(", ") || "NONE"}`);
+      await refreshBadges();
       if (syncFromCache()) return;
 
       for (const guild of guilds.values()) {
@@ -122,7 +137,8 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
   client.on("error", (err) => log("gateway", `client error: ${err.message}`));
 
   setInterval(() => {
-    if (client.isReady()) syncFromCache();
+    if (!client.isReady()) return;
+    void refreshBadges().then(() => syncFromCache());
   }, RESYNC_MS);
 
   // A bad or revoked token must degrade the widget to "unknown", not crash the
