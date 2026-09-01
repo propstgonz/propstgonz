@@ -46,6 +46,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.presence
     image: forge-presence
+    container_name: github-profile.widget
     user: "10001:10001"
     env_file: .env
     environment:
