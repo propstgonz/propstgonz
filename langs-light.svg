@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="144" viewBox="0 0 480 144" font-family='system-ui, -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif'>
+  <rect width="480" height="144" fill="#ffffff" />
+  <text x="10" y="18" fill="#a67b40" font-size="15" font-weight="600">Most Used Languages</text>
+  <rect x="10" y="30" width="460" height="12" rx="6" fill="#678079" opacity="0.15" />
+  <clipPath id="bar-clip"><rect x="10" y="30" width="460" height="12" rx="6" /></clipPath>
+  <g clip-path="url(#bar-clip)"><rect x="10.00" y="30" width="191.04" height="12" fill="#3178c6"><title>TypeScript 41.5%</title></rect><rect x="201.04" y="30" width="127.98" height="12" fill="#f1e05a"><title>JavaScript 27.8%</title></rect><rect x="329.02" y="30" width="69.44" height="12" fill="#ff5a03"><title>Astro 15.1%</title></rect><rect x="398.47" y="30" width="35.57" height="12" fill="#e34c26"><title>HTML 7.7%</title></rect><rect x="434.04" y="30" width="22.39" height="12" fill="#563d7c"><title>CSS 4.9%</title></rect><rect x="456.43" y="30" width="8.83" height="12" fill="#3572A5"><title>Python 1.9%</title></rect><rect x="465.26" y="30" width="4.10" height="12" fill="#384d54"><title>Dockerfile 0.9%</title></rect><rect x="469.35" y="30" width="0.65" height="12" fill="#6e7681"><title>Other 0.1%</title></rect></g>
+  
+        <circle cx="15" cy="62" r="5" fill="#3178c6" />
+        <text x="26" y="66" fill="#2f3a35" font-size="13">TypeScript <tspan fill="#a67b40">41.5%</tspan></text>
+        <circle cx="245" cy="62" r="5" fill="#f1e05a" />
+        <text x="256" y="66" fill="#2f3a35" font-size="13">JavaScript <tspan fill="#a67b40">27.8%</tspan></text>
+        <circle cx="15" cy="84" r="5" fill="#ff5a03" />
+        <text x="26" y="88" fill="#2f3a35" font-size="13">Astro <tspan fill="#a67b40">15.1%</tspan></text>
+        <circle cx="245" cy="84" r="5" fill="#e34c26" />
+        <text x="256" y="88" fill="#2f3a35" font-size="13">HTML <tspan fill="#a67b40">7.7%</tspan></text>
+        <circle cx="15" cy="106" r="5" fill="#563d7c" />
+        <text x="26" y="110" fill="#2f3a35" font-size="13">CSS <tspan fill="#a67b40">4.9%</tspan></text>
+        <circle cx="245" cy="106" r="5" fill="#3572A5" />
+        <text x="256" y="110" fill="#2f3a35" font-size="13">Python <tspan fill="#a67b40">1.9%</tspan></text>
+        <circle cx="15" cy="128" r="5" fill="#384d54" />
+        <text x="26" y="132" fill="#2f3a35" font-size="13">Dockerfile <tspan fill="#a67b40">0.9%</tspan></text>
+        <circle cx="245" cy="128" r="5" fill="#6e7681" />
+        <text x="256" y="132" fill="#2f3a35" font-size="13">Other <tspan fill="#a67b40">0.1%</tspan></text>
+</svg>
