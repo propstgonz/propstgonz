@@ -126,27 +126,34 @@ this repo's `main` branch, `scriptPath: Jenkinsfile`) is what actually runs it �
 configuring that job, its credentials, and the Jenkins instance itself happens on
 the server, out of scope for this repo.
 
-The `Jenkinsfile` builds and deploys **only `forge-presence`**. The collector is
-excluded on purpose: it holds the SSH key and the PAT, and a CI system able to
-redeploy it is a CI system able to exfiltrate them. Deploy the collector by hand.
+The `Jenkinsfile` builds and deploys **both `forge-presence` and `forge-collector`**
+from the same workspace, monolith-style — one checkout, one pipeline, no separate
+deploy directory. This was a deliberate simplification for a single, self-controlled
+host, chosen over keeping the collector CI-free. Know what it costs:
 
-- **`docker compose up` runs directly in the Jenkins job's own workspace** — there
-  is no separate deploy directory and nothing gets rsynced anywhere. The job does
-  a plain `git checkout -f` and no `git clean`, so the untracked, gitignored `.env`
-  sitting in that workspace survives every build. It is created once by hand
-  (`GITHUB_PAT` and `DISCORD_BOT_TOKEN` filled in, per `.env.example`) and CI never
-  writes to it. Do not add a "wipe workspace" or `git clean` step to this job —
-  that would delete it, and the next build would fail the `.env` check on purpose
-  rather than deploy with a stale or missing one.
-- Consequence of the above: unlike the SSH key, `GITHUB_PAT` and `DISCORD_BOT_TOKEN`
-  **do** end up living on disk inside Jenkins' own storage for this job, by
-  deliberate choice — this Jenkins is a single host the user directly controls, not
-  a fleet of ephemeral or shared-tenant agents. The SSH key still never goes near
-  it: this pipeline never touches `forge-collector`, so it has no reason to.
-- Do not "simplify" this by injecting tokens as Jenkins credentials instead of a
-  workspace `.env` — same secret model, worse: it moves the value into Jenkins'
-  credential store and job configuration, which is exactly the extra surface this
-  setup avoids.
+- **`docker compose` runs directly in the Jenkins job's own workspace** — nothing
+  gets rsynced anywhere. The job does a plain `git checkout -f` and no `git clean`,
+  so the untracked, gitignored `.env` and `forge/.secrets/ssh_key` sitting in that
+  workspace survive every build. Both are created once by hand (see `forge/README.md`)
+  and CI never writes to them. Do not add a "wipe workspace" or `git clean` step to
+  this job — that would delete both, and the next build would fail on purpose rather
+  than deploy with something stale or missing.
+- **Jenkins now holds all three secrets and has practical authority to redeploy the
+  collector.** `GITHUB_PAT` and `DISCORD_BOT_TOKEN` live in the workspace `.env`;
+  `ssh_key` lives in `forge/.secrets/`. Anyone who can push to `main` or compromise
+  this Jenkins job can get code that reads all three onto the machine that has them.
+  This is the opposite of the "no CI on the collector" posture the rest of this
+  document otherwise assumes, kept anyway because this Jenkins is a single host the
+  user directly controls, not a fleet of ephemeral or shared-tenant agents. If that
+  ever changes, revisit this before anything else.
+- The collector stage runs a real dry run (`node dist/cron.js --once --dry-run`)
+  against the workspace's own secrets before touching the live container — it
+  clones every repo, runs linguist, computes contributions, and renders SVGs, just
+  skips the final `git push`. A broken build never reaches the deploy step; the
+  previous container keeps running untouched.
+- Do not "simplify" this by injecting tokens as Jenkins credentials instead of the
+  workspace `.env`/`ssh_key` files — same secret model, worse: it moves the values
+  into Jenkins' credential store and job configuration, extra surface for no gain.
 - Jenkins mounting the docker socket, binding to `127.0.0.1`, admin auth, and
   which jobs are allowed to run on it are all properties of the shared server,
   not of this repo — see whatever configures that Jenkins instance for those.

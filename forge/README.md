@@ -52,13 +52,16 @@ See the **Commands** section of `../CLAUDE.md` for the full list (build, deploy,
 run, per-stage debugging, presence checks, secret-leak audit). All commands run from the repo root
 now, not from `forge/`.
 
-### If `forge-presence` is deployed through Jenkins
+### Deploying through Jenkins
 
-The `Jenkinsfile` runs `docker compose up` directly inside that job's own workspace — it does not
-rsync anywhere. That workspace needs its own `.env` (steps 1 and 4 above, but created inside the
-workspace directory on the Jenkins host, not on your machine). Create it once by hand; the job does
-a plain `git checkout -f` with no `git clean`, so the untracked `.env` survives across builds. See
-**Continuous deployment** in `../CLAUDE.md` for the full reasoning and the trade-off it implies.
+The `Jenkinsfile` builds and deploys **both** services directly inside that job's own workspace —
+there is no separate deploy directory, no rsync, and no second checkout. That one workspace needs
+its own `.env` **and** `forge/.secrets/ssh_key` (steps 1–4 above, but created inside the job's
+workspace directory on the Jenkins host, not necessarily on your machine). Create both once by hand;
+the job does a plain `git checkout -f` with no `git clean`, so both untracked files survive across
+builds and CI never writes to them. See **Continuous deployment** in `../CLAUDE.md` for the full
+reasoning and the trade-off it implies — Jenkins ends up holding all three secrets under this setup,
+accepted deliberately for a single self-controlled host.
 
 The `assets` branch is created automatically by the collector on its first successful run — nothing
 to do by hand there.

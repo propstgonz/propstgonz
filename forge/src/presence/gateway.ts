@@ -3,6 +3,7 @@ import {
   Client,
   GatewayIntentBits,
   Partials,
+  type Presence as DiscordPresence,
   type PresenceStatus,
   type User,
 } from "discord.js";
@@ -16,7 +17,7 @@ export type Presence = {
   updatedAt: string;
 };
 
-const STALE_MS = 60_000;
+const RESYNC_MS = 5 * 60_000;
 const avatarCache = new Map<string, string>();
 
 async function fetchAvatarDataUri(user: User | null | undefined): Promise<string | null> {
@@ -50,12 +51,13 @@ function initialPresence(): Presence {
  * Connects to the Discord Gateway and tracks presence for a single user ID.
  * Discord has no REST endpoint for presence -- the Gateway with the
  * GUILD_PRESENCES intent, and a shared guild with the bot, are the only way.
- * Returns a getter that degrades to "unknown" if the gateway has gone quiet,
- * so the widget never claims "offline" when it actually just lost connection.
+ * Returns a getter that degrades to "unknown" only when the gateway itself is
+ * not connected, so the widget never claims "offline" when it actually just
+ * lost connection -- and never claims "unknown" just because the user hasn't
+ * changed status in a while, which is the normal case, not a stale one.
  */
 export function startGateway(userId: string, onChange: (p: Presence) => void): () => Presence {
   let current = initialPresence();
-  let lastSeen = 0;
 
   const client = new Client({
     intents: [
@@ -68,27 +70,50 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
 
   const publish = (p: Presence) => {
     current = p;
-    lastSeen = Date.now();
     onChange(p);
+  };
+
+  const publishFromDiscordPresence = async (discordPresence: DiscordPresence) => {
+    const activityObj = discordPresence.activities.find((a) => a.type !== ActivityType.Custom);
+    const customState =
+      discordPresence.activities.find((a) => a.type === ActivityType.Custom)?.state ?? null;
+    publish({
+      status: discordPresence.status,
+      activity: activityObj ? activityObj.name : customState,
+      avatarDataUri: await fetchAvatarDataUri(discordPresence.user),
+      displayName: discordPresence.user?.globalName ?? discordPresence.user?.username ?? "propstgonz",
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const syncFromCache = () => {
+    const found = client.guilds.cache
+      .map((guild) => guild.presences.cache.get(userId))
+      .find((p): p is DiscordPresence => p !== undefined);
+    if (found) void publishFromDiscordPresence(found);
   };
 
   client.on("presenceUpdate", (_old, next) => {
     if (next.userId !== userId) return;
-    void (async () => {
-      const activityObj = next.activities.find((a) => a.type !== ActivityType.Custom);
-      const customState = next.activities.find((a) => a.type === ActivityType.Custom)?.state ?? null;
-      publish({
-        status: next.status,
-        activity: activityObj ? activityObj.name : customState,
-        avatarDataUri: await fetchAvatarDataUri(next.user),
-        displayName: next.user?.globalName ?? next.user?.username ?? "propstgonz",
-        updatedAt: new Date().toISOString(),
-      });
-    })();
+    void publishFromDiscordPresence(next);
   });
 
-  client.once("clientReady", () => log("gateway", "connected to discord"));
+  // presenceUpdate only fires on a *change*. Without this, a user who never
+  // switches status after the bot connects would stay "unknown" forever even
+  // though the gateway is connected and already holds their presence --
+  // Discord sends it in the initial guild sync, cached by the time "ready" fires.
+  client.once("clientReady", () => {
+    log("gateway", "connected to discord");
+    syncFromCache();
+  });
   client.on("error", (err) => log("gateway", `client error: ${err.message}`));
+
+  // Discord does not guarantee gateway event delivery, and presenceUpdate only
+  // fires on a change, so this periodically re-reads the cached presence as a
+  // self-healing resync rather than relying solely on push events.
+  setInterval(() => {
+    if (client.isReady()) syncFromCache();
+  }, RESYNC_MS);
 
   // A bad or revoked token must degrade the widget to "unknown", not crash the
   // HTTP server that also answers /healthz and /discord.svg.
@@ -98,10 +123,5 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
     log("gateway", `login failed, presence will report "unknown": ${err.message}`);
   });
 
-  return () => {
-    if (current.status !== "unknown" && Date.now() - lastSeen > STALE_MS) {
-      return { ...current, status: "unknown" };
-    }
-    return current;
-  };
+  return () => (client.isReady() ? current : { ...current, status: "unknown" });
 }

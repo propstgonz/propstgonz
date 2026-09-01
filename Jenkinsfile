@@ -1,8 +1,12 @@
-// Builds and deploys forge-presence (the Discord bot).
+// Builds and deploys both forge-presence and forge-collector from the same
+// workspace, monolith-style: one checkout, one pipeline, no separate deploy
+// directory or manual step beyond the one-time secrets bootstrap (.env and
+// forge/.secrets/ssh_key placed in this workspace by hand).
 //
-// The collector is deliberately NOT part of this pipeline. It holds the SSH key
-// and the GitHub PAT; a CI system able to redeploy it is a CI system able to
-// exfiltrate them. Deploy the collector by hand, from the host.
+// This does mean Jenkins now has practical authority to redeploy the
+// collector, which holds the SSH key (full account write access) and the
+// GitHub PAT -- a deliberate trade-off for a single self-controlled host,
+// not the default posture. See "Continuous deployment" in CLAUDE.md.
 
 def deployed = false
 
@@ -17,8 +21,9 @@ pipeline {
   }
 
   environment {
-    IMAGE   = 'forge-presence'
-    SERVICE = 'forge-presence'
+    IMAGE             = 'forge-presence'
+    SERVICE           = 'forge-presence'
+    COLLECTOR_SERVICE = 'forge-collector'
   }
 
   stages {
@@ -108,6 +113,37 @@ pipeline {
           docker logs --tail 50 "$CID" >&2
           exit 1
         '''
+      }
+    }
+
+    stage('Collector build + smoke test') {
+      // A real dry run against this workspace's own .env and ssh_key: verifies
+      // SSH auth to GitHub, clones/updates every repo, runs linguist, computes
+      // the contribution calendar, and renders the SVGs -- everything except
+      // the final `git push`. Catches a broken build before it ever touches
+      // the live collector. The same command as CLAUDE.md's manual pre-push
+      // check, just run here against the freshly built image.
+      steps {
+        sh '''
+          set -eu
+          if [ ! -f forge/.secrets/ssh_key ]; then
+            echo "missing forge/.secrets/ssh_key in the Jenkins workspace - see forge/README.md" >&2
+            exit 1
+          fi
+
+          docker compose build "${COLLECTOR_SERVICE}"
+          docker compose run --rm "${COLLECTOR_SERVICE}" node dist/cron.js --once --dry-run
+        '''
+      }
+    }
+
+    stage('Deploy collector') {
+      // No rollback dance needed here: the smoke test above already ran the
+      // exact image this recreates the container with, so a broken build
+      // never reaches this step -- the previous container just keeps running
+      // untouched if the smoke test failed.
+      steps {
+        sh 'docker compose up -d --no-deps "${COLLECTOR_SERVICE}"'
       }
     }
   }
