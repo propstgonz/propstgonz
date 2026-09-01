@@ -31,7 +31,7 @@ jobs:
                 branch('*/main')
               }
             }
-            scriptPath('forge/Jenkinsfile')
+            scriptPath('Jenkinsfile')
             lightweight(true)
           }
         }

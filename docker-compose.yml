@@ -1,12 +1,11 @@
 name: readme-forge
 
 secrets:
+  # The SSH key is the one credential that stays file-based: an account-level
+  # key carries write access to every repo the account owns, so it must never
+  # be readable via `docker inspect` or a crash dump the way an env var is.
   ssh_key:
-    file: ./.secrets/ssh_key
-  github_pat:
-    file: ./.secrets/github_pat
-  discord_bot_token:
-    file: ./.secrets/discord_bot_token
+    file: ./forge/.secrets/ssh_key
 
 volumes:
   forge-state:
@@ -31,15 +30,11 @@ services:
     image: forge-collector
     user: "10001:10001"
     # No ports. This container has the keys; it does not listen.
-    secrets: [ssh_key, github_pat]
+    secrets: [ssh_key]
+    env_file: .env
     environment:
       TZ: Europe/Madrid
-      GITHUB_LOGIN: propstgonz
-      PROFILE_REPO: git@github.com:propstgonz/propstgonz.git
-      ASSETS_BRANCH: assets
       STATE_DIR: /state
-      CRON_SCHEDULE: "0 4 * * *"
-      GITHUB_PAT_FILE: /run/secrets/github_pat
     volumes:
       - forge-state:/state
     tmpfs:
@@ -52,21 +47,24 @@ services:
       dockerfile: docker/Dockerfile.presence
     image: forge-presence
     user: "10001:10001"
-    secrets: [discord_bot_token]
+    env_file: .env
     environment:
       TZ: Europe/Madrid
-      PORT: "8787"
-      DISCORD_USER_ID: "1000141861333258393"
-      DISCORD_BOT_TOKEN_FILE: /run/secrets/discord_bot_token
-    ports:
-      - "127.0.0.1:8787:8787" # reverse proxy terminates TLS in front of this
     volumes:
       - forge-state:/state:ro # the exposed service never writes shared state
     tmpfs:
       - /tmp:size=16m,mode=1777
       - /state-local:size=8m,mode=1777
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-net"
+      - "traefik.http.routers.readme-forge.rule=Host(`widgets.baronette.es`)"
+      - "traefik.http.routers.readme-forge.entrypoints=websecure"
+      - "traefik.http.routers.readme-forge.tls=true"
+      - "traefik.http.services.readme-forge.loadbalancer.server.port=8787"
+
+networks:
+  traefik-net:
+    external: true

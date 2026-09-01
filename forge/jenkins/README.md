@@ -20,7 +20,7 @@ Mitigations, all of which are already applied or assumed:
 
 ## What Jenkins deliberately does NOT have
 
-- **No Discord token.** Compose reads it from `/srv/readme-forge/.secrets/` on the
+- **No Discord token.** Compose reads it from `/srv/readme-forge/.env` on the
   host at container start. CI only runs `docker compose up -d`.
 - **No SSH key, no GitHub PAT.** The collector is not part of the pipeline, on
   purpose: a CI system able to redeploy it could exfiltrate those secrets.
@@ -43,8 +43,9 @@ The result is that the CI system holds none of the three secrets the project use
 
 3. Prepare the deploy directory that holds the persistent secrets and state:
    ```bash
-   sudo mkdir -p /srv/readme-forge/.secrets
-   sudo cp forge/.secrets/discord_bot_token /srv/readme-forge/.secrets/
+   sudo mkdir -p /srv/readme-forge/forge/.secrets
+   sudo cp .env /srv/readme-forge/.env
+   sudo cp forge/.secrets/ssh_key /srv/readme-forge/forge/.secrets/ssh_key
    sudo chown -R "$(id -u):$(id -g)" /srv/readme-forge
    ```
 
@@ -77,8 +78,8 @@ bumped core, rather than pinning 40 plugin versions nobody will ever update.
 |---|---|---|
 | Build image | `docker build` of `Dockerfile.presence` | The build runs `tsc`, so type errors fail here. No separate typecheck stage would run the same compiler twice. |
 | Smoke test | Boots the new image with an invalid token, expects `/healthz` to answer | Regression guard: a bad token must degrade the widget to `unknown`, not crash the process. This bug was real once. |
-| Deploy | rsyncs code to `/srv/readme-forge`, retags images, `compose up -d` | `.secrets/` and `state/` are excluded from the sync and never touched by CI. |
-| Verify | Polls the container's healthcheck | Reuses the healthcheck already in `docker-compose.yml` instead of reaching for a port from inside the Jenkins container. |
+| Deploy | rsyncs code to `/srv/readme-forge`, retags images, `compose up -d` | `.env`, `forge/.secrets/` and `forge/state/` are excluded from the sync and never touched by CI. |
+| Verify | `docker exec`s into the running container and polls `/healthz` | There is no compose healthcheck to poll — `forge-presence` sits behind Traefik with no published port, so this reaches the container the same way the smoke test does. |
 
 On failure after the deploy stage, the pipeline retags `forge-presence:rollback`
 back to `:latest` and brings the previous image back up.

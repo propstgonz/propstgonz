@@ -27,9 +27,7 @@ pipeline {
       // The image build runs `tsc`, so a type error fails the build right here.
       // There is no separate typecheck stage: it would run the same compiler twice.
       steps {
-        dir('forge') {
-          sh 'docker build -f docker/Dockerfile.presence -t "${IMAGE}:${BUILD_NUMBER}" .'
-        }
+        sh 'docker build -f docker/Dockerfile.presence -t "${IMAGE}:${BUILD_NUMBER}" .'
       }
     }
 
@@ -39,11 +37,8 @@ pipeline {
       steps {
         sh '''
           set -eu
-          # /etc/hostname is a non-empty file present in every container, so it
-          # stands in as a well-formed but invalid token. Avoids a bind mount:
-          # the daemon would resolve the path on the host, not inside Jenkins.
           CID=$(docker run -d \
-            -e DISCORD_BOT_TOKEN_FILE=/etc/hostname \
+            -e DISCORD_BOT_TOKEN=smoke-test-invalid-token \
             -e DISCORD_USER_ID=0 \
             "${IMAGE}:${BUILD_NUMBER}")
           trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
@@ -71,17 +66,19 @@ pipeline {
         script { deployed = true }
         sh '''
           set -eu
-          if [ ! -f "${DEPLOY_DIR}/.secrets/discord_bot_token" ]; then
-            echo "missing ${DEPLOY_DIR}/.secrets/discord_bot_token - see forge/README.md" >&2
+          if [ ! -f "${DEPLOY_DIR}/.env" ]; then
+            echo "missing ${DEPLOY_DIR}/.env - see README.md" >&2
             exit 1
           fi
 
-          # Sync code only. .secrets/ and state/ live on the host and are never
-          # touched by CI, which is why Jenkins needs no secret of its own.
+          # Sync code only. .env, forge/.secrets/ and forge/state/ live on the
+          # host and are never touched by CI, which is why Jenkins needs no
+          # secret of its own.
           rsync -a --delete \
-            --exclude '.secrets/' --exclude 'state/' \
-            --exclude 'node_modules/' --exclude 'dist/' \
-            forge/ "${DEPLOY_DIR}/"
+            --exclude '.git/' --exclude '.env' \
+            --exclude 'forge/.secrets/' --exclude 'forge/state/' \
+            --exclude 'forge/node_modules/' --exclude 'forge/dist/' \
+            ./ "${DEPLOY_DIR}/"
 
           if docker image inspect "${IMAGE}:latest" >/dev/null 2>&1; then
             docker tag "${IMAGE}:latest" "${IMAGE}:rollback"
@@ -95,8 +92,9 @@ pipeline {
     }
 
     stage('Verify') {
-      // Reuses the healthcheck already declared in docker-compose.yml instead of
-      // reaching for the port from inside the Jenkins container.
+      // No compose healthcheck to poll (Traefik does its own routing checks),
+      // so this execs into the container and probes /healthz directly --
+      // the same approach as the smoke test above.
       steps {
         sh '''
           set -eu
@@ -104,12 +102,12 @@ pipeline {
           CID=$(docker compose ps -q "${SERVICE}")
           [ -n "$CID" ] || { echo "verify: service is not running" >&2; exit 1; }
 
+          PROBE="fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
           for _ in $(seq 1 30); do
-            STATUS=$(docker inspect --format '{{.State.Health.Status}}' "$CID" 2>/dev/null || echo starting)
-            case "$STATUS" in
-              healthy)   echo "verify: healthy"; exit 0 ;;
-              unhealthy) break ;;
-            esac
+            if docker exec "$CID" node -e "$PROBE" >/dev/null 2>&1; then
+              echo "verify: healthy"
+              exit 0
+            fi
             sleep 2
           done
 

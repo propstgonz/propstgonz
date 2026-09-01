@@ -1,0 +1,8 @@
+.git
+.env
+forge/.secrets
+forge/state
+forge/node_modules
+forge/dist
+forge/out-preview
+forge/jenkins

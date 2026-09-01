@@ -23,6 +23,12 @@ profile is that the infrastructure behind it is auditable.
 
 ## Architecture rules
 
+- **Orchestration lives at the repo root, application code lives in `forge/`.**
+  `docker-compose.yml`, `Jenkinsfile`, and `docker/` (the two Dockerfiles, the collector entrypoint,
+  the pinned `known_hosts`) live at the repo root — that is the standard, muscle-memory layout and
+  every command in this file assumes it. `forge/` holds only `src/`, `dist/`, `package.json`,
+  `state/`, and `.secrets/` (the SSH key). Build contexts are the repo root; Dockerfiles `COPY` from
+  `forge/...` accordingly.
 - **Two services, two images, one source tree.**
   - `forge-presence` — internet-facing. Alpine, Node only. Holds the Discord token. No SSH key,
     no PAT, no `git`, no shell tooling it does not need.
@@ -58,36 +64,45 @@ profile is that the infrastructure behind it is auditable.
 
 ## Secrets — non-negotiable handling
 
-Secrets live in `forge/.secrets/`, which is in `.gitignore` and must never be committed.
-Verify before every commit that touches `forge/`:
+Two different mechanisms, by deliberate choice, not oversight:
+
+- **The SSH key** stays file-based: `forge/.secrets/` (gitignored, never committed).
+- **`GITHUB_PAT` and `DISCORD_BOT_TOKEN`** live in a root-level `.env` (gitignored, never committed,
+  see `.env.example` for the full var list) and reach containers via Compose `env_file: .env`. This
+  is a conscious trade-off for one-file configuration, accepted for these two only because a bearer
+  token is bounded (revoke and rotate) where the SSH key is not — see below.
+
+Verify before every commit:
 
 ```bash
-git status --porcelain forge/.secrets   # must print nothing
+git status --porcelain forge/.secrets .env   # must print nothing
 git diff --cached | grep -iE 'BEGIN .*PRIVATE KEY|ghp_|github_pat_|MT[A-Za-z0-9]{20,}'
 ```
 
 Rules:
 
-- Secrets reach containers **only** through Docker Compose `secrets:` (bind-mounted read-only at
-  `/run/secrets/<name>`). **Never** through `environment:`, `ENV`, build args, or the image.
-  Environment variables are visible in `docker inspect`, in crash dumps, and to every child process.
-- Read them with `readSecret(name)` from `src/lib/secrets.ts`, which resolves in this order:
-  `<NAME>_FILE` → `/run/secrets/<name>` → throw. There is no inline-value fallback by design.
-- The SSH key is **never copied to disk and never used with `ssh -i`**. `entrypoint-collector.sh`
-  starts `ssh-agent`, runs `ssh-add /run/secrets/ssh_key`, and exports `SSH_AUTH_SOCK` into a
-  `tmpfs`. The key exists only in agent memory. This also sidesteps the file-permission checks that
-  make bind-mounted keys miserable.
+- `GITHUB_PAT` and `DISCORD_BOT_TOKEN` are read with plain `process.env["NAME"]` and a throw if
+  missing — there is no file-reading helper for them, because they no longer arrive as files.
+- The SSH key is the one credential that **never** goes through `environment:`/`ENV`/`.env`, is
+  **never copied to disk**, and is **never used with `ssh -i`**. It reaches the container only
+  through Docker Compose `secrets:` (bind-mounted read-only at `/run/secrets/ssh_key`).
+  `entrypoint-collector.sh` starts `ssh-agent`, runs `ssh-add /run/secrets/ssh_key`, and exports
+  `SSH_AUTH_SOCK` into a `tmpfs`. The key exists only in agent memory. This also sidesteps the
+  file-permission checks that make bind-mounted keys miserable. The reason it gets this extra
+  isolation and the bearer tokens don't: an account-level SSH key carries write access to every repo
+  the account owns, and cannot be scoped down the way a PAT or bot token can.
 - Host key verification is **on**. `docker/known_hosts.github` is baked into the image and pinned via
   `GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/etc/ssh/known_hosts.github"`.
   `StrictHostKeyChecking=no` is never acceptable, not even temporarily.
 - Never log a secret, never interpolate one into a URL, never write one into `state/`.
   `state/presence.json` stores status and activity — never the bot token, never guild IDs.
-- Use a **dedicated** SSH key (`readme-forge`), not your personal one. Be aware that an account-level
-  SSH key carries write access to every repo you own; that is the cost of enumerating and cloning
-  private repos over SSH. The lower-privilege alternative, if you ever want it, is a fine-grained PAT
-  with `contents:read` over HTTPS — the collector is written so only `clone.ts` would change.
-- Rotation: revoke in GitHub/Discord first, then replace the file in `forge/.secrets/`, then
-  `docker compose up -d --force-recreate`. Compose secrets are re-read on container start, not live.
+- Use a **dedicated** SSH key (`readme-forge`), not your personal one. The lower-privilege
+  alternative, if you ever want it, is a fine-grained PAT with `contents:read` over HTTPS — the
+  collector is written so only `clone.ts` would change.
+- Rotation: revoke in GitHub/Discord first. For the SSH key, replace the file in `forge/.secrets/`.
+  For `GITHUB_PAT`/`DISCORD_BOT_TOKEN`, replace the value in `.env`. Either way, finish with
+  `docker compose up -d --force-recreate` — Compose secrets and `env_file` are both read on
+  container start, not live.
 
 ## Container hardening baseline
 
@@ -103,12 +118,13 @@ is excluded on purpose: it holds the SSH key and the PAT, and a CI system able t
 redeploy it is a CI system able to exfiltrate them. Deploy the collector by hand.
 
 - **Jenkins holds none of the three secrets.** Compose reads them from
-  `/srv/readme-forge/.secrets/` on the host at container start; CI only runs
-  `docker compose up -d`. The profile repo is public, so there are no git
-  credentials either. Do not "simplify" this by injecting tokens as Jenkins
-  credentials — it would undo the entire secret model.
-- The deploy step rsyncs code into `/srv/readme-forge` with `.secrets/` and
-  `state/` excluded. Those directories are host state and CI must never write them.
+  `/srv/readme-forge/.env` and `/srv/readme-forge/forge/.secrets/` on the host
+  at container start; CI only runs `docker compose up -d`. The profile repo is
+  public, so there are no git credentials either. Do not "simplify" this by
+  injecting tokens as Jenkins credentials — it would undo the entire secret model.
+- The deploy step rsyncs the repo into `/srv/readme-forge` with `.env`,
+  `forge/.secrets/` and `forge/state/` excluded. Those are host state and CI
+  must never write them.
 - Jenkins mounts the docker socket, which makes it root-equivalent on the host.
   It is therefore bound to `127.0.0.1` with anonymous read off. Do not add jobs
   from repositories you do not control, and do not expose the port.
@@ -124,8 +140,7 @@ docker compose up -d --build          # start Jenkins on 127.0.0.1:8080
 docker compose logs -f jenkins
 docker compose restart jenkins        # reload after editing casc.yaml
 
-# --- deploy ---
-cd forge
+# --- deploy (run from repo root) ---
 docker compose build
 docker compose up -d
 docker compose ps
@@ -140,9 +155,10 @@ docker compose run --rm forge-collector node dist/cron.js --once --only=contribu
 docker compose run --rm forge-collector node dist/cron.js --once --dry-run   # renders, does not push
 
 # --- presence service ---
-curl -s localhost:8787/healthz
-curl -s localhost:8787/presence.json | jq
-curl -s "localhost:8787/discord.svg?theme=dark" > /tmp/discord.svg
+# No published port: forge-presence sits behind Traefik on traefik-net, so
+# reach it either through the public hostname or by execing into the container.
+curl -s https://widgets.baronette.es/healthz
+docker compose exec forge-presence node -e "fetch('http://127.0.0.1:8787/presence.json').then(r=>r.text()).then(console.log)"
 
 # --- local development (no Docker; linguist stages will not work) ---
 npm ci && npm run build && npm run typecheck
@@ -160,7 +176,7 @@ docker run --rm --entrypoint sh forge-collector -c 'ls -la /run/secrets 2>/dev/n
    seeing forks or vendored files and `collect/repos.ts` has a filtering bug.
 4. Streak numbers match github.com/propstgonz's contribution graph exactly. Off-by-one means a
    timezone bug — check `TZ` in `docker-compose.yml`.
-5. `git status --porcelain forge/.secrets` prints nothing.
+5. `git status --porcelain forge/.secrets .env` prints nothing.
 
 ## Tone of the README itself
 

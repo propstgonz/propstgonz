@@ -6,7 +6,6 @@ import {
   type PresenceStatus,
   type User,
 } from "discord.js";
-import { readSecret } from "../lib/secrets.js";
 import { log } from "../lib/log.js";
 
 export type Presence = {
@@ -93,7 +92,9 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
 
   // A bad or revoked token must degrade the widget to "unknown", not crash the
   // HTTP server that also answers /healthz and /discord.svg.
-  client.login(readSecret("discord_bot_token")).catch((err: Error) => {
+  const token = process.env["DISCORD_BOT_TOKEN"];
+  if (!token) throw new Error("DISCORD_BOT_TOKEN is not set; provide it in .env");
+  client.login(token).catch((err: Error) => {
     log("gateway", `login failed, presence will report "unknown": ${err.message}`);
   });
 

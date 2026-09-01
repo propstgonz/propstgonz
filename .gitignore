@@ -1,3 +1,4 @@
+/.env
 forge/.secrets/
 forge/state/
 forge/node_modules/
