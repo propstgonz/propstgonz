@@ -38,14 +38,18 @@ async function iconDataUri(hash: string): Promise<string | null> {
 export async function fetchBadges(client: Client, userId: string): Promise<string[]> {
   const user = await client.users.fetch(userId, { force: true });
   const flags = user.flags?.toArray() ?? [];
-  log("badges", `public flags: ${flags.join(", ") || "none"}`);
+  log("badges", `public flags (raw ${user.flags?.bitfield ?? 0}): ${flags.join(", ") || "none"}`);
 
   const uris: string[] = [];
   for (const flag of flags) {
     const hash = BADGE_ICONS[flag];
-    if (!hash) continue;
+    if (!hash) {
+      log("badges", `no icon mapped for flag ${flag}`);
+      continue;
+    }
     const uri = await iconDataUri(hash);
     if (uri) uris.push(uri);
   }
+  log("badges", `${uris.length} badge(s) rendered`);
   return uris;
 }
