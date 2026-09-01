@@ -86,11 +86,13 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
     });
   };
 
-  const syncFromCache = () => {
+  const syncFromCache = (): boolean => {
     const found = client.guilds.cache
       .map((guild) => guild.presences.cache.get(userId))
       .find((p): p is DiscordPresence => p !== undefined);
-    if (found) void publishFromDiscordPresence(found);
+    if (!found) return false;
+    void publishFromDiscordPresence(found);
+    return true;
   };
 
   client.on("presenceUpdate", (_old, next) => {
@@ -98,19 +100,27 @@ export function startGateway(userId: string, onChange: (p: Presence) => void): (
     void publishFromDiscordPresence(next);
   });
 
-  // presenceUpdate only fires on a *change*. Without this, a user who never
-  // switches status after the bot connects would stay "unknown" forever even
-  // though the gateway is connected and already holds their presence --
-  // Discord sends it in the initial guild sync, cached by the time "ready" fires.
+  // presenceUpdate only fires on a change, so read the initial cached presence.
   client.once("clientReady", () => {
-    log("gateway", "connected to discord");
-    syncFromCache();
+    void (async () => {
+      const guilds = client.guilds.cache;
+      log("gateway", `connected, tracking ${userId}`);
+      log("gateway", `${guilds.size} guild(s): ${guilds.map((g) => g.name).join(", ") || "NONE"}`);
+      if (syncFromCache()) return;
+
+      for (const guild of guilds.values()) {
+        const member = await guild.members.fetch(userId).catch(() => null);
+        log(
+          "gateway",
+          member
+            ? `${guild.name}: member found, but no presence cached (offline or invisible?)`
+            : `${guild.name}: ${userId} is NOT a member of this guild`,
+        );
+      }
+    })();
   });
   client.on("error", (err) => log("gateway", `client error: ${err.message}`));
 
-  // Discord does not guarantee gateway event delivery, and presenceUpdate only
-  // fires on a change, so this periodically re-reads the cached presence as a
-  // self-healing resync rather than relying solely on push events.
   setInterval(() => {
     if (client.isReady()) syncFromCache();
   }, RESYNC_MS);
