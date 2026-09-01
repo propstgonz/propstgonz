@@ -1,12 +1,5 @@
-// Builds and deploys both forge-presence and forge-collector from the same
-// workspace, monolith-style: one checkout, one pipeline, no separate deploy
-// directory or manual step beyond the one-time secrets bootstrap (.env and
-// forge/.secrets/ssh_key placed in this workspace by hand).
-//
-// This does mean Jenkins now has practical authority to redeploy the
-// collector, which holds the SSH key (full account write access) and the
-// GitHub PAT -- a deliberate trade-off for a single self-controlled host,
-// not the default posture. See "Continuous deployment" in CLAUDE.md.
+// Builds and deploys both services from this workspace.
+// See "Continuous deployment" in CLAUDE.md for the secret trade-off.
 
 def deployed = false
 
@@ -66,11 +59,7 @@ pipeline {
     }
 
     stage('Deploy') {
-      // Runs docker compose directly in the Jenkins workspace -- there is no
-      // separate deploy directory to rsync into. .env and forge/.secrets/
-      // are untracked and gitignored, so a plain `git checkout -f` (this
-      // job runs no `git clean`) never touches them; they persist here
-      // across builds and CI never writes to them.
+      // .env and forge/.secrets/ are untracked, so `git checkout -f` keeps them.
       steps {
         script { deployed = true }
         sh '''
@@ -91,9 +80,7 @@ pipeline {
     }
 
     stage('Verify') {
-      // No compose healthcheck to poll (Traefik does its own routing checks),
-      // so this execs into the container and probes /healthz directly --
-      // the same approach as the smoke test above.
+      // No compose healthcheck to poll: probe /healthz from inside instead.
       steps {
         sh '''
           set -eu
@@ -113,19 +100,13 @@ pipeline {
           docker logs --tail 50 "$CID" >&2
           exit 1
         '''
-        // Presence is confirmed healthy as of here -- a later, unrelated
-        // failure (the collector stages below) must not roll it back.
+        // Healthy from here: a collector failure must not roll presence back.
         script { deployed = false }
       }
     }
 
     stage('Collector build + smoke test') {
-      // A real dry run against this workspace's own .env and ssh_key: verifies
-      // SSH auth to GitHub, clones/updates every repo, runs linguist, computes
-      // the contribution calendar, and renders the SVGs -- everything except
-      // the final `git push`. Catches a broken build before it ever touches
-      // the live collector. The same command as CLAUDE.md's manual pre-push
-      // check, just run here against the freshly built image.
+      // Full pipeline run against the real secrets, minus the final push.
       steps {
         sh '''
           set -eu
@@ -141,10 +122,7 @@ pipeline {
     }
 
     stage('Deploy collector') {
-      // No rollback dance needed here: the smoke test above already ran the
-      // exact image this recreates the container with, so a broken build
-      // never reaches this step -- the previous container just keeps running
-      // untouched if the smoke test failed.
+      // No rollback needed: the smoke test gates this on the same image.
       steps {
         sh 'docker compose up -d --no-deps "${COLLECTOR_SERVICE}"'
       }
@@ -154,9 +132,7 @@ pipeline {
   post {
     failure {
       script {
-        // True only between the Deploy and Verify stages for forge-presence --
-        // Verify resets it once presence is confirmed healthy, so a failure in
-        // an unrelated later stage (the collector) never rolls presence back.
+        // Only true between presence's Deploy and Verify.
         if (deployed) {
           sh '''
             set -eu

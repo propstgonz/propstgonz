@@ -1,11 +1,8 @@
 name: readme-forge
 
 secrets:
-  # The SSH key is the one credential that stays file-based: an account-level
-  # key carries write access to every repo the account owns, so it must never
-  # be readable via `docker inspect` or a crash dump the way an env var is.
   ssh_key:
-    file: ./forge/.secrets/ssh_key
+    file: ${HOST_PROJECT_DIR:-.}/forge/.secrets/ssh_key
 
 volumes:
   forge-state:
@@ -29,14 +26,7 @@ services:
       dockerfile: docker/Dockerfile.collector
     image: forge-collector
     user: "10001:10001"
-    # No ports. This container has the keys; it does not listen.
-    #
-    # Deliberately NOT env_file: .env -- that would also hand this container
-    # DISCORD_BOT_TOKEN, which it never uses, putting all three secrets (this
-    # PAT, that token, and the ssh_key below) in one place. Each var is listed
-    # explicitly instead, resolved from the same root .env by Compose's own
-    # ${VAR} substitution -- one file to edit, but each container only gets
-    # what it actually needs.
+    # No env_file: it would also hand this container DISCORD_BOT_TOKEN.
     secrets: [ssh_key]
     environment:
       TZ: Europe/Madrid
@@ -59,8 +49,7 @@ services:
     image: forge-presence
     container_name: github-profile.widget
     user: "10001:10001"
-    # Not env_file: .env either -- same reasoning as forge-collector, mirrored:
-    # this container must never see GITHUB_PAT or ssh_key.
+    # No env_file: this container must never see GITHUB_PAT.
     environment:
       TZ: Europe/Madrid
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
