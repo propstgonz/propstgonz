@@ -113,34 +113,36 @@ fix the bug.
 
 ## Continuous deployment
 
-Jenkins (`forge/jenkins/`) builds and deploys **only `forge-presence`**. The collector
-is excluded on purpose: it holds the SSH key and the PAT, and a CI system able to
+Jenkins is a **shared service that already runs on the deployment server** — it hosts
+pipeline jobs for many projects, this one included. This repo does not provision,
+build, or contain that Jenkins instance; it only supplies the `Jenkinsfile` at the
+repo root. A job on that shared Jenkins ("Pipeline script from SCM", pointing at
+this repo's `main` branch, `scriptPath: Jenkinsfile`) is what actually runs it —
+configuring that job, its credentials, and the Jenkins instance itself happens on
+the server, out of scope for this repo.
+
+The `Jenkinsfile` builds and deploys **only `forge-presence`**. The collector is
+excluded on purpose: it holds the SSH key and the PAT, and a CI system able to
 redeploy it is a CI system able to exfiltrate them. Deploy the collector by hand.
 
-- **Jenkins holds none of the three secrets.** Compose reads them from
+- **The pipeline holds none of the three secrets.** Compose reads them from
   `/srv/readme-forge/.env` and `/srv/readme-forge/forge/.secrets/` on the host
-  at container start; CI only runs `docker compose up -d`. The profile repo is
-  public, so there are no git credentials either. Do not "simplify" this by
-  injecting tokens as Jenkins credentials — it would undo the entire secret model.
+  at container start; the pipeline only runs `docker compose up -d`. The profile
+  repo is public, so there are no git credentials either. Do not "simplify" this
+  by injecting tokens as Jenkins credentials — it would undo the entire secret model.
 - The deploy step rsyncs the repo into `/srv/readme-forge` with `.env`,
-  `forge/.secrets/` and `forge/state/` excluded. Those are host state and CI
-  must never write them.
-- Jenkins mounts the docker socket, which makes it root-equivalent on the host.
-  It is therefore bound to `127.0.0.1` with anonymous read off. Do not add jobs
-  from repositories you do not control, and do not expose the port.
-- Its whole configuration is `casc.yaml`. Change the job there, in git — never by
-  clicking in the UI, which writes to a volume nobody can reproduce.
+  `forge/.secrets/` and `forge/state/` excluded. Those are host state and the
+  pipeline must never write them.
+- Jenkins mounting the docker socket, binding to `127.0.0.1`, admin auth, and
+  which jobs are allowed to run on it are all properties of the shared server,
+  not of this repo — see whatever configures that Jenkins instance for those.
 
 ## Commands
 
 ```bash
-# --- CI ---
-cd forge/jenkins
-docker compose up -d --build          # start Jenkins on 127.0.0.1:8080
-docker compose logs -f jenkins
-docker compose restart jenkins        # reload after editing casc.yaml
-
 # --- deploy (run from repo root) ---
+# CI is the shared Jenkins already running on the server, not something this
+# repo starts — there is no local "start Jenkins" command here anymore.
 docker compose build
 docker compose up -d
 docker compose ps

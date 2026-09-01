@@ -4,7 +4,5 @@ forge/state/
 forge/node_modules/
 forge/dist/
 forge/out-preview/
-forge/jenkins/.secrets/
-forge/jenkins/.env
 *.log
 CLAUDE.md
