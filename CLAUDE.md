@@ -96,9 +96,34 @@ Both services run with `user: "10001:10001"`, `read_only: true`, `cap_drop: [ALL
 volume read-write; the presence service mounts it `:ro`. Do not relax any of these to fix a bug —
 fix the bug.
 
+## Continuous deployment
+
+Jenkins (`forge/jenkins/`) builds and deploys **only `forge-presence`**. The collector
+is excluded on purpose: it holds the SSH key and the PAT, and a CI system able to
+redeploy it is a CI system able to exfiltrate them. Deploy the collector by hand.
+
+- **Jenkins holds none of the three secrets.** Compose reads them from
+  `/srv/readme-forge/.secrets/` on the host at container start; CI only runs
+  `docker compose up -d`. The profile repo is public, so there are no git
+  credentials either. Do not "simplify" this by injecting tokens as Jenkins
+  credentials — it would undo the entire secret model.
+- The deploy step rsyncs code into `/srv/readme-forge` with `.secrets/` and
+  `state/` excluded. Those directories are host state and CI must never write them.
+- Jenkins mounts the docker socket, which makes it root-equivalent on the host.
+  It is therefore bound to `127.0.0.1` with anonymous read off. Do not add jobs
+  from repositories you do not control, and do not expose the port.
+- Its whole configuration is `casc.yaml`. Change the job there, in git — never by
+  clicking in the UI, which writes to a volume nobody can reproduce.
+
 ## Commands
 
 ```bash
+# --- CI ---
+cd forge/jenkins
+docker compose up -d --build          # start Jenkins on 127.0.0.1:8080
+docker compose logs -f jenkins
+docker compose restart jenkins        # reload after editing casc.yaml
+
 # --- deploy ---
 cd forge
 docker compose build
