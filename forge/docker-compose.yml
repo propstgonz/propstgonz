@@ -1,0 +1,72 @@
+name: readme-forge
+
+secrets:
+  ssh_key:
+    file: ./.secrets/ssh_key
+  github_pat:
+    file: ./.secrets/github_pat
+  discord_bot_token:
+    file: ./.secrets/discord_bot_token
+
+volumes:
+  forge-state:
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  forge-collector:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.collector
+    image: forge-collector
+    user: "10001:10001"
+    # No ports. This container has the keys; it does not listen.
+    secrets: [ssh_key, github_pat]
+    environment:
+      TZ: Europe/Madrid
+      GITHUB_LOGIN: propstgonz
+      PROFILE_REPO: git@github.com:propstgonz/propstgonz.git
+      ASSETS_BRANCH: assets
+      STATE_DIR: /state
+      CRON_SCHEDULE: "0 4 * * *"
+      GITHUB_PAT_FILE: /run/secrets/github_pat
+    volumes:
+      - forge-state:/state
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+
+  forge-presence:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.presence
+    image: forge-presence
+    user: "10001:10001"
+    secrets: [discord_bot_token]
+    environment:
+      TZ: Europe/Madrid
+      PORT: "8787"
+      DISCORD_USER_ID: "1000141861333258393"
+      DISCORD_BOT_TOKEN_FILE: /run/secrets/discord_bot_token
+    ports:
+      - "127.0.0.1:8787:8787" # reverse proxy terminates TLS in front of this
+    volumes:
+      - forge-state:/state:ro # the exposed service never writes shared state
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /state-local:size=8m,mode=1777
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

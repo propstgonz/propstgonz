@@ -1,0 +1,36 @@
+# ---- build: TypeScript -> dist ----
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json* tsconfig.json ./
+RUN npm install
+COPY src ./src
+RUN npm run build && npm prune --omit=dev
+
+# ---- build: github-linguist native gems ----
+FROM node:22-bookworm-slim AS gems
+ENV GEM_HOME=/opt/gems PATH=/opt/gems/bin:$PATH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ruby-dev build-essential cmake pkg-config libicu-dev libssl-dev zlib1g-dev \
+ && gem install github-linguist --no-document \
+ && rm -rf /var/lib/apt/lists/*
+
+# ---- runtime ----
+FROM node:22-bookworm-slim
+ENV GEM_HOME=/opt/gems PATH=/opt/gems/bin:$PATH \
+    NODE_ENV=production TZ=Europe/Madrid \
+    GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/etc/ssh/known_hosts.github -o IdentitiesOnly=no"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ruby git openssh-client ca-certificates libicu72 tzdata \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -u 10001 -m -s /usr/sbin/nologin forge
+COPY --from=gems  /opt/gems /opt/gems
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/dist         /app/dist
+COPY docker/known_hosts.github      /etc/ssh/known_hosts.github
+COPY docker/entrypoint-collector.sh /usr/local/bin/entrypoint
+RUN chmod 0755 /usr/local/bin/entrypoint \
+ && mkdir -p /state && chown forge:forge /state
+WORKDIR /app
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
+CMD ["node", "dist/cron.js"]

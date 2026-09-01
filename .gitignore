@@ -1,0 +1,6 @@
+forge/.secrets/
+forge/state/
+forge/node_modules/
+forge/dist/
+forge/out-preview/
+*.log
