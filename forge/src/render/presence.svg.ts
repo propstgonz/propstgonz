@@ -3,7 +3,8 @@ import type { Presence } from "../presence/gateway.js";
 
 const WIDTH = 360;
 const HEIGHT = 90;
-const MAX_BADGES = 5;
+const BADGE_AREA_START = 200;
+const BADGE_MIN_SIZE = 10;
 
 const STATUS_COLOR: Record<Presence["status"], string> = {
   online: "#3ba55d",
@@ -40,14 +41,19 @@ export function renderPresenceSvg(presence: Presence, themeName: ThemeName): str
        <image href="${presence.avatarDataUri}" x="${avatarCx - avatarR}" y="${avatarCy - avatarR}" width="${avatarR * 2}" height="${avatarR * 2}" clip-path="url(#avatar-clip)" />`
     : `<circle cx="${avatarCx}" cy="${avatarCy}" r="${avatarR}" fill="${theme.stroke}" opacity="0.3" />`;
 
-  const badgeSize = 16;
+  const shownBadges = presence.badges;
   const badgeGap = 4;
-  const shownBadges = presence.badges.slice(0, MAX_BADGES);
+  const maxAreaWidth = WIDTH - 14 - BADGE_AREA_START;
+  const badgeSize =
+    shownBadges.length === 0
+      ? 16
+      : Math.min(16, Math.max(BADGE_MIN_SIZE, (maxAreaWidth + badgeGap) / shownBadges.length - badgeGap));
   const badgesWidth = shownBadges.length * (badgeSize + badgeGap) - badgeGap;
+  const badgeY = 22 - badgeSize / 2;
   const badges = shownBadges
     .map((uri, i) => {
       const x = WIDTH - 14 - badgesWidth + i * (badgeSize + badgeGap);
-      return `<image href="${uri}" x="${x}" y="14" width="${badgeSize}" height="${badgeSize}" />`;
+      return `<image href="${uri}" x="${x}" y="${badgeY}" width="${badgeSize}" height="${badgeSize}" />`;
     })
     .join("\n  ");
 
