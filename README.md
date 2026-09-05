@@ -26,13 +26,13 @@ I document my broken setups, notes, and occasional rants on my [blog](https://pr
 <h2>My GitHub statistics</h2>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/streak-dark.svg?v=b3810a2c" />
-  <img src="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/streak-light.svg?v=b3810a2c" alt="Contribution streak" width="95%" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/streak-dark.svg?v=13d40456" />
+  <img src="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/streak-light.svg?v=13d40456" alt="Contribution streak" width="95%" />
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-dark.svg?v=b3810a2c" />
-  <img src="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-light.svg?v=b3810a2c" alt="Language usage across all my repositories" width="95%" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-dark.svg?v=13d40456" />
+  <img src="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-light.svg?v=13d40456" alt="Language usage across all my repositories" width="95%" />
 </picture>
 <sub>Rendered by <a href="./forge">forge/</a> — self-hosted, updated daily at 04:00 CET. No Vercel, no Heroku, no third parties.</sub>
 <!-- FORGE:END -->
