@@ -35,7 +35,7 @@ services:
       GITHUB_LOGIN: "${GITHUB_LOGIN:-propstgonz}"
       PROFILE_REPO: "${PROFILE_REPO:-git@github.com:propstgonz/propstgonz.git}"
       ASSETS_BRANCH: "${ASSETS_BRANCH:-assets}"
-      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 4 * * *}"
+      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 * * * *}"
     volumes:
       - forge-state:/state
     tmpfs:

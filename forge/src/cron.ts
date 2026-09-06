@@ -22,9 +22,9 @@ async function runOnce(): Promise<void> {
 if (once) {
   await runOnce();
 } else {
-  const schedule = process.env["CRON_SCHEDULE"] ?? "0 4 * * *";
+  const schedule = process.env["CRON_SCHEDULE"] ?? "0 * * * *";
   log("cron", `scheduling pipeline at "${schedule}" (${process.env["TZ"] ?? "system tz"})`);
   cron.schedule(schedule, () => void runOnce());
-  // Run once at startup so a fresh deploy doesn't wait a full day for first data.
+  // Run once at startup so a fresh deploy has data before the next hour mark.
   void runOnce();
 }

@@ -32,7 +32,7 @@ profile is that the infrastructure behind it is auditable.
 - **Two services, two images, one source tree.**
   - `forge-presence` — internet-facing. Alpine, Node only. Holds the Discord token. No SSH key,
     no PAT, no `git`, no shell tooling it does not need.
-  - `forge-collector` — no listening ports. Holds the SSH key and the PAT. Runs the daily pipeline.
+  - `forge-collector` — no listening ports. Holds the SSH key and the PAT. Runs the hourly pipeline.
   - **No container ever holds all three secrets.** Any change that violates this is rejected.
 - **Collection, rendering and publishing are separate modules.** `collect/*` only produces JSON in
   `state/`. `render/*` is a pure function from JSON to an SVG string — it must not perform network
@@ -169,7 +169,7 @@ docker compose up -d
 docker compose ps
 docker compose logs -f forge-collector
 
-# --- run the daily pipeline right now (no waiting for cron) ---
+# --- run the pipeline right now (no waiting for cron) ---
 docker compose run --rm forge-collector node dist/cron.js --once
 
 # --- individual stages, for debugging ---

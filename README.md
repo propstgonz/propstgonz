@@ -34,5 +34,5 @@ I document my broken setups, notes, and occasional rants on my [blog](https://pr
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-dark.svg?v=18742a6c" />
   <img src="https://raw.githubusercontent.com/propstgonz/propstgonz/assets/langs-light.svg?v=18742a6c" alt="Language usage across all my repositories" width="95%" />
 </picture>
-<sub>Rendered by <a href="./forge">forge/</a> — self-hosted, updated daily at 04:00 CET. No Vercel, no Heroku, no third parties.</sub>
+<sub>Rendered by <a href="./forge">forge/</a> — self-hosted, updated hourly. No Vercel, no Heroku, no third parties.</sub>
 <!-- FORGE:END -->
