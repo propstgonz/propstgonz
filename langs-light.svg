@@ -3,14 +3,14 @@
   <text x="10" y="18" fill="#a67b40" font-size="15" font-weight="600">Most Used Languages</text>
   <rect x="10" y="30" width="460" height="12" rx="6" fill="#678079" opacity="0.15" />
   <clipPath id="bar-clip"><rect x="10" y="30" width="460" height="12" rx="6" /></clipPath>
-  <g clip-path="url(#bar-clip)"><rect x="10.00" y="30" width="219.93" height="12" fill="#3178c6"><title>TypeScript 47.8%</title></rect><rect x="229.93" y="30" width="114.24" height="12" fill="#f1e05a"><title>JavaScript 24.8%</title></rect><rect x="344.17" y="30" width="61.98" height="12" fill="#ff5a03"><title>Astro 13.5%</title></rect><rect x="406.15" y="30" width="31.75" height="12" fill="#e34c26"><title>HTML 6.9%</title></rect><rect x="437.90" y="30" width="19.98" height="12" fill="#563d7c"><title>CSS 4.3%</title></rect><rect x="457.89" y="30" width="7.88" height="12" fill="#3572A5"><title>Python 1.7%</title></rect><rect x="465.76" y="30" width="3.66" height="12" fill="#384d54"><title>Dockerfile 0.8%</title></rect><rect x="469.42" y="30" width="0.58" height="12" fill="#6e7681"><title>Other 0.1%</title></rect></g>
+  <g clip-path="url(#bar-clip)"><rect x="10.00" y="30" width="221.34" height="12" fill="#3178c6"><title>TypeScript 48.1%</title></rect><rect x="231.34" y="30" width="113.57" height="12" fill="#f1e05a"><title>JavaScript 24.7%</title></rect><rect x="344.91" y="30" width="61.62" height="12" fill="#ff5a03"><title>Astro 13.4%</title></rect><rect x="406.53" y="30" width="31.57" height="12" fill="#e34c26"><title>HTML 6.9%</title></rect><rect x="438.09" y="30" width="19.87" height="12" fill="#563d7c"><title>CSS 4.3%</title></rect><rect x="457.96" y="30" width="7.83" height="12" fill="#3572A5"><title>Python 1.7%</title></rect><rect x="465.79" y="30" width="3.64" height="12" fill="#384d54"><title>Dockerfile 0.8%</title></rect><rect x="469.43" y="30" width="0.57" height="12" fill="#6e7681"><title>Other 0.1%</title></rect></g>
   
         <circle cx="15" cy="62" r="5" fill="#3178c6" />
-        <text x="26" y="66" fill="#2f3a35" font-size="13">TypeScript <tspan fill="#a67b40">47.8%</tspan></text>
+        <text x="26" y="66" fill="#2f3a35" font-size="13">TypeScript <tspan fill="#a67b40">48.1%</tspan></text>
         <circle cx="245" cy="62" r="5" fill="#f1e05a" />
-        <text x="256" y="66" fill="#2f3a35" font-size="13">JavaScript <tspan fill="#a67b40">24.8%</tspan></text>
+        <text x="256" y="66" fill="#2f3a35" font-size="13">JavaScript <tspan fill="#a67b40">24.7%</tspan></text>
         <circle cx="15" cy="84" r="5" fill="#ff5a03" />
-        <text x="26" y="88" fill="#2f3a35" font-size="13">Astro <tspan fill="#a67b40">13.5%</tspan></text>
+        <text x="26" y="88" fill="#2f3a35" font-size="13">Astro <tspan fill="#a67b40">13.4%</tspan></text>
         <circle cx="245" cy="84" r="5" fill="#e34c26" />
         <text x="256" y="88" fill="#2f3a35" font-size="13">HTML <tspan fill="#a67b40">6.9%</tspan></text>
         <circle cx="15" cy="106" r="5" fill="#563d7c" />
