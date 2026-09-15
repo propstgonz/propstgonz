@@ -14,13 +14,13 @@ export type StreakSummary = {
 
 /**
  * The current streak survives a zero on today, since the day isn't over yet;
- * it breaks only on a past day. `asOf` travels with the summary so rendering
- * stays a pure function of this object, and it is a local date because the
- * container runs on the same TZ the contribution calendar is cut on.
+ * it breaks only on a past day. `asOf` is a UTC date because that is the grid
+ * the contribution calendar is bucketed on, and it travels with the summary so
+ * rendering stays a pure function of this object.
  */
 export function computeStreaks(state: ContributionsState): StreakSummary {
   const { days } = state;
-  const asOf = new Date().toLocaleDateString("en-CA");
+  const asOf = new Date().toISOString().slice(0, 10);
 
   let longestStreak = 0;
   let longestStreakRange: DateRange | null = null;

@@ -44,34 +44,34 @@ export type ContributionsState = z.infer<typeof ContributionsStateSchema>;
 
 export type Window = { from: Date; to: Date };
 
-function startOfDay(date: Date): Date {
-  return new Date(`${date.toLocaleDateString("en-CA")}T00:00:00`);
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-function endOfDay(date: Date): Date {
-  const next = startOfDay(date);
-  next.setDate(next.getDate() + 1);
-  return new Date(next.getTime() - 1);
+function endOfUtcDay(date: Date): Date {
+  return new Date(startOfUtcDay(date).getTime() + 86_400_000 - 1);
 }
 
 /**
- * One window per calendar year, which is how GitHub itself slices the
- * contribution graph — the year tabs on a profile are exactly these ranges.
- * A range that straddles two years makes GitHub stitch two precomputed
- * calendars together and it drops days at the seam; the previous rolling
- * 365-day windows hit that seam on every run and additionally left a 24h hole
- * between consecutive windows. Every boundary is local midnight so no day is
- * ever counted in half.
+ * One window per calendar year, cut on UTC midnight because that is the grid
+ * GitHub buckets `contributionCalendar` days on. Local-midnight boundaries look
+ * equivalent but land at 22:00/23:00Z, which puts the same UTC day at the end of
+ * one window and the start of the next; the second copy only covers that last
+ * hour, so it comes back near zero and overwrites the real count. That is how
+ * whole days of contributions were disappearing.
  */
 export function contributionWindows(accountCreatedAt: Date, now: Date): Window[] {
-  const first = startOfDay(accountCreatedAt);
-  const last = endOfDay(now);
+  const first = startOfUtcDay(accountCreatedAt);
+  const last = endOfUtcDay(now);
   const windows: Window[] = [];
 
-  for (let year = first.getFullYear(); year <= last.getFullYear(); year += 1) {
+  for (let year = first.getUTCFullYear(); year <= last.getUTCFullYear(); year += 1) {
     windows.push({
-      from: year === first.getFullYear() ? first : new Date(year, 0, 1),
-      to: year === last.getFullYear() ? last : new Date(year, 11, 31, 23, 59, 59, 999),
+      from: year === first.getUTCFullYear() ? first : new Date(Date.UTC(year, 0, 1)),
+      to:
+        year === last.getUTCFullYear()
+          ? last
+          : new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)),
     });
   }
   return windows;
@@ -88,31 +88,37 @@ export async function collectContributions(accountCreatedAt: string): Promise<Co
   let totalContributions = 0;
 
   for (const window of contributionWindows(new Date(accountCreatedAt), new Date())) {
-    const raw = await client.request(QUERY, {
-      from: window.from.toISOString(),
-      to: window.to.toISOString(),
-    });
+    const from = window.from.toISOString();
+    const to = window.to.toISOString();
+    const raw = await client.request(QUERY, { from, to });
     const calendar = YearResponseSchema.parse(raw).viewer.contributionsCollection
       .contributionCalendar;
 
-    totalContributions += calendar.totalContributions;
+    const firstDay = from.slice(0, 10);
+    const lastDay = to.slice(0, 10);
+    let windowSum = 0;
+
+    // GitHub pads the calendar out to whole Sunday-Saturday weeks, so the edge
+    // weeks carry days from the neighbouring window at count 0.
     for (const week of calendar.weeks) {
       for (const day of week.contributionDays) {
+        if (day.date < firstDay || day.date > lastDay) continue;
         byDate.set(day.date, day.contributionCount);
+        windowSum += day.contributionCount;
       }
     }
+
+    if (windowSum !== calendar.totalContributions) {
+      throw new Error(
+        `contribution calendar for ${firstDay}..${lastDay} is inconsistent: days sum to ${windowSum} but GitHub reports ${calendar.totalContributions}`,
+      );
+    }
+    totalContributions += calendar.totalContributions;
   }
 
   const days = [...byDate]
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
-
-  const summed = days.reduce((sum, d) => sum + d.count, 0);
-  if (summed !== totalContributions) {
-    throw new Error(
-      `contribution calendar is inconsistent: days sum to ${summed} but GitHub reports ${totalContributions}`,
-    );
-  }
 
   log("collect:contributions", `${days.length} days, ${totalContributions} contributions`);
 
