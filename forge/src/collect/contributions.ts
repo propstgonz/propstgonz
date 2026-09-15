@@ -8,6 +8,7 @@ const DaySchema = z.object({ date: z.string(), contributionCount: z.number() });
 const YearResponseSchema = z.object({
   viewer: z.object({
     contributionsCollection: z.object({
+      restrictedContributionsCount: z.number(),
       contributionCalendar: z.object({
         totalContributions: z.number(),
         weeks: z.array(z.object({ contributionDays: z.array(DaySchema) })),
@@ -20,6 +21,7 @@ const QUERY = /* GraphQL */ `
   query ContributionsInRange($from: DateTime!, $to: DateTime!) {
     viewer {
       contributionsCollection(from: $from, to: $to) {
+        restrictedContributionsCount
         contributionCalendar {
           totalContributions
           weeks {
@@ -86,14 +88,16 @@ export async function collectContributions(accountCreatedAt: string): Promise<Co
   const client = githubClient();
   const byDate = new Map<string, number>();
   let totalContributions = 0;
+  let restrictedContributions = 0;
 
   for (const window of contributionWindows(new Date(accountCreatedAt), new Date())) {
     const from = window.from.toISOString();
     const to = window.to.toISOString();
     const raw = await client.request(QUERY, { from, to });
-    const calendar = YearResponseSchema.parse(raw).viewer.contributionsCollection
-      .contributionCalendar;
+    const collection = YearResponseSchema.parse(raw).viewer.contributionsCollection;
+    const calendar = collection.contributionCalendar;
 
+    restrictedContributions += collection.restrictedContributionsCount;
     const firstDay = from.slice(0, 10);
     const lastDay = to.slice(0, 10);
     let windowSum = 0;
@@ -114,6 +118,16 @@ export async function collectContributions(accountCreatedAt: string): Promise<Co
       );
     }
     totalContributions += calendar.totalContributions;
+  }
+
+  // A restricted contribution is one GITHUB_PAT is not allowed to itemise. The
+  // profile page still counts it, so the calendar we get back is missing whole
+  // days that github.com shows as active, and any streak crossing one of them
+  // breaks. The scope, not the data, is what has to be fixed.
+  if (restrictedContributions > 0) {
+    throw new Error(
+      `GITHUB_PAT cannot see ${restrictedContributions} contributions that github.com counts, so ${totalContributions} is not the real total and streaks spanning those days are wrong. Use a classic PAT with the repo and read:user scopes; a fine-grained token cannot return private contribution counts.`,
+    );
   }
 
   const days = [...byDate]
