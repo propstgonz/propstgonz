@@ -1,85 +1,69 @@
 import type { ContributionsState } from "./contributions.js";
 
+type DateRange = { from: string; to: string };
+
 export type StreakSummary = {
   totalContributions: number;
-  totalRange: { from: string; to: string };
+  totalRange: DateRange;
   currentStreak: number;
-  currentStreakRange: { from: string; to: string } | null;
+  currentStreakRange: DateRange | null;
   longestStreak: number;
-  longestStreakRange: { from: string; to: string } | null;
+  longestStreakRange: DateRange | null;
   asOf: string;
 };
 
-function todayLocalDate(): string {
-  // TZ is set to Europe/Madrid at the container level so this cut matches the
-  // reader's own contribution calendar on github.com.
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-}
-
 /**
- * Reproduces the semantics of the reference streak widget: current streak
- * stays alive through "today" even if today has zero contributions yet,
- * since the day isn't over. It only breaks once a full day is skipped.
+ * The current streak survives a zero on today, since the day isn't over yet;
+ * it breaks only on a past day. `asOf` travels with the summary so rendering
+ * stays a pure function of this object, and it is a local date because the
+ * container runs on the same TZ the contribution calendar is cut on.
  */
 export function computeStreaks(state: ContributionsState): StreakSummary {
-  const days = state.days;
-  const totalContributions = days.reduce((sum, d) => sum + d.count, 0);
-  const totalRange = {
-    from: days[0]?.date ?? state.firstDate,
-    to: days[days.length - 1]?.date ?? state.firstDate,
-  };
+  const { days } = state;
+  const asOf = new Date().toLocaleDateString("en-CA");
 
   let longestStreak = 0;
-  let longestRange: { from: string; to: string } | null = null;
-  let runStart: string | null = null;
-  let runLength = 0;
+  let longestStreakRange: DateRange | null = null;
+  let run = 0;
+  let runStart = "";
 
   for (const day of days) {
-    if (day.count > 0) {
-      if (runLength === 0) runStart = day.date;
-      runLength += 1;
-      if (runLength > longestStreak) {
-        longestStreak = runLength;
-        longestRange = { from: runStart ?? day.date, to: day.date };
-      }
-    } else {
-      runLength = 0;
-      runStart = null;
+    if (day.count === 0) {
+      run = 0;
+      continue;
+    }
+    if (run === 0) runStart = day.date;
+    run += 1;
+    if (run > longestStreak) {
+      longestStreak = run;
+      longestStreakRange = { from: runStart, to: day.date };
     }
   }
 
-  // Current streak: walk backwards from the last recorded day. If the most
-  // recent day is today with zero contributions, skip it (the day isn't over)
-  // and start counting from yesterday instead.
   let currentStreak = 0;
-  let currentEnd: string | null = null;
-  let currentStart: string | null = null;
-  const today = todayLocalDate();
+  let currentStreakRange: DateRange | null = null;
+  let currentEnd = "";
 
-  for (let i = days.length - 1; i >= 0; i -= 1) {
-    const day = days[i];
-    if (!day) continue;
-    if (day.count > 0) {
-      currentStreak += 1;
-      currentStart = day.date;
-      if (currentEnd === null) currentEnd = day.date;
-    } else if (day.date === today) {
-      continue; // today not over yet; don't break the streak on it
-    } else {
+  for (const day of [...days].reverse()) {
+    if (day.count === 0) {
+      if (day.date === asOf) continue;
       break;
     }
+    if (currentEnd === "") currentEnd = day.date;
+    currentStreak += 1;
+    currentStreakRange = { from: day.date, to: currentEnd };
   }
 
-  const currentStreakRange =
-    currentStreak > 0 && currentStart && currentEnd ? { from: currentStart, to: currentEnd } : null;
-
   return {
-    totalContributions,
-    totalRange,
+    totalContributions: state.totalContributions,
+    totalRange: {
+      from: days[0]?.date ?? state.firstDate,
+      to: days[days.length - 1]?.date ?? state.firstDate,
+    },
     currentStreak,
     currentStreakRange,
     longestStreak,
-    longestStreakRange: longestRange,
-    asOf: today,
+    longestStreakRange,
+    asOf,
   };
 }
