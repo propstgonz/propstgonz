@@ -39,6 +39,33 @@ const ContributionsStateSchema = z.object({
 });
 export type ContributionsState = z.infer<typeof ContributionsStateSchema>;
 
+function localMidnight(date: Date): Date {
+  return new Date(`${date.toLocaleDateString("en-CA")}T00:00:00`);
+}
+
+function addDays(date: Date, days: number): Date {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + days);
+  return shifted;
+}
+
+/**
+ * GitHub buckets contributions by calendar day, so a window that starts or ends
+ * mid-day reports a partial count for that day. Anchoring every boundary to
+ * local midnight keeps each day whole, and starting window N+1 exactly where N
+ * ended closes the 24h hole the previous `to + 1 day` step left behind. 365 days
+ * wide because GitHub rejects a range longer than a year.
+ */
+export function contributionWindows(accountCreatedAt: Date, now: Date): { from: Date; to: Date }[] {
+  const end = addDays(localMidnight(now), 1);
+  const windows: { from: Date; to: Date }[] = [];
+  for (let from = localMidnight(accountCreatedAt); from < end; from = addDays(from, 365)) {
+    const boundary = Math.min(addDays(from, 365).getTime(), end.getTime());
+    windows.push({ from, to: new Date(boundary - 1) });
+  }
+  return windows;
+}
+
 /**
  * The GraphQL contributionsCollection is the only source that matches GitHub's
  * own contribution graph exactly: it includes private repos, PRs, and issues,
@@ -47,24 +74,21 @@ export type ContributionsState = z.infer<typeof ContributionsStateSchema>;
  */
 export async function collectContributions(accountCreatedAt: string): Promise<ContributionsState> {
   const client = githubClient();
-  const start = new Date(accountCreatedAt);
-  const now = new Date();
   const days: { date: string; count: number }[] = [];
 
-  let from = start;
-  while (from < now) {
-    const to = new Date(Math.min(from.getTime() + 365 * 24 * 60 * 60 * 1000, now.getTime()));
-    const raw = await client.request(QUERY, { from: from.toISOString(), to: to.toISOString() });
+  for (const window of contributionWindows(new Date(accountCreatedAt), new Date())) {
+    const raw = await client.request(QUERY, {
+      from: window.from.toISOString(),
+      to: window.to.toISOString(),
+    });
     const parsed = YearResponseSchema.parse(raw);
     for (const week of parsed.viewer.contributionsCollection.contributionCalendar.weeks) {
       for (const day of week.contributionDays) {
         days.push({ date: day.date, count: day.contributionCount });
       }
     }
-    from = new Date(to.getTime() + 24 * 60 * 60 * 1000);
   }
 
-  // Dedup by date (year windows can overlap by a day) and sort chronologically.
   const byDate = new Map(days.map((d) => [d.date, d.count]));
   const sortedDays = [...byDate.entries()]
     .map(([date, count]) => ({ date, count }))

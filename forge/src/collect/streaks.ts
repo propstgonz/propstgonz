@@ -7,6 +7,7 @@ export type StreakSummary = {
   currentStreakRange: { from: string; to: string } | null;
   longestStreak: number;
   longestStreakRange: { from: string; to: string } | null;
+  asOf: string;
 };
 
 function todayLocalDate(): string {
@@ -79,5 +80,6 @@ export function computeStreaks(state: ContributionsState): StreakSummary {
     currentStreakRange,
     longestStreak,
     longestStreakRange: longestRange,
+    asOf: today,
   };
 }

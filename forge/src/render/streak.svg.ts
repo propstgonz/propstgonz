@@ -9,11 +9,14 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function rangeLabel(range: { from: string; to: string } | null, presentIfToday: boolean): string {
+function rangeLabel(
+  range: { from: string; to: string } | null,
+  asOf: string,
+  presentIfToday: boolean,
+): string {
   if (!range) return "—";
   const from = formatDate(range.from);
-  const today = new Date().toLocaleDateString("en-CA");
-  const to = presentIfToday && range.to === today ? "Present" : formatDate(range.to);
+  const to = presentIfToday && range.to === asOf ? "Present" : formatDate(range.to);
   return `${from} - ${to}`;
 }
 
@@ -35,7 +38,7 @@ export function renderStreakSvg(summary: StreakSummary, themeName: ThemeName): s
   <g>
     <text x="${colWidth / 2}" y="70" fill="${theme.text}" font-size="28" font-weight="700">${summary.totalContributions.toLocaleString("en-US")}</text>
     <text x="${colWidth / 2}" y="95" fill="${theme.accent}" font-size="13">Total Contributions</text>
-    <text x="${colWidth / 2}" y="115" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.totalRange, true)}</text>
+    <text x="${colWidth / 2}" y="115" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.totalRange, summary.asOf, true)}</text>
   </g>
 
   <line x1="${colWidth}" y1="20" x2="${colWidth}" y2="${HEIGHT - 20}" stroke="${theme.stroke}" stroke-opacity="0.4" />
@@ -48,13 +51,13 @@ export function renderStreakSvg(summary: StreakSummary, themeName: ThemeName): s
       stroke-linecap="round" transform="rotate(-90 ${centerX} ${ringY})" />
     <text x="${centerX}" y="${ringY + 8}" fill="${theme.text}" font-size="26" font-weight="700">${summary.currentStreak}</text>
     <text x="${centerX}" y="145" fill="${theme.accent}" font-size="13" font-weight="600">Current Streak</text>
-    <text x="${centerX}" y="163" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.currentStreakRange, false)}</text>
+    <text x="${centerX}" y="163" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.currentStreakRange, summary.asOf, false)}</text>
   </g>
 
   <g>
     <text x="${colWidth * 2 + colWidth / 2}" y="70" fill="${theme.text}" font-size="28" font-weight="700">${summary.longestStreak}</text>
     <text x="${colWidth * 2 + colWidth / 2}" y="95" fill="${theme.accent}" font-size="13">Longest Streak</text>
-    <text x="${colWidth * 2 + colWidth / 2}" y="115" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.longestStreakRange, false)}</text>
+    <text x="${colWidth * 2 + colWidth / 2}" y="115" fill="${theme.text}" font-size="11" opacity="0.8">${rangeLabel(summary.longestStreakRange, summary.asOf, false)}</text>
   </g>
 </svg>`;
 }
